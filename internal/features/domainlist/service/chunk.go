@@ -10,14 +10,14 @@ import (
 func (s *DomainListService) BuildChunks(
 	ctx context.Context,
 	list domain.List,
-	partCount, linesPerFile int,
+	linesPerFile int,
 ) ([][]string, error) {
 	domains, err := s.BuildDomains(ctx, list)
 	if err != nil {
 		return nil, err
 	}
 
-	chunks, err := domain.SplitIntoFixedParts(domains, partCount, linesPerFile)
+	chunks, err := domain.SplitIntoRouterParts(domains, linesPerFile)
 	if err != nil {
 		return nil, err
 	}
@@ -29,8 +29,8 @@ func (s *DomainListService) SplitDomains(domains []string, linesPerFile int) [][
 	return domain.SplitIntoParts(domains, linesPerFile)
 }
 
-func (s *DomainListService) LoadChunks(dir string, partCount, linesPerFile int) ([][]string, error) {
-	chunks, err := s.storage.ReadParts(dir, partCount, linesPerFile)
+func (s *DomainListService) LoadChunks(dir string, linesPerFile int) ([][]string, error) {
+	chunks, err := s.storage.ReadParts(dir, linesPerFile)
 	if err != nil {
 		return nil, fmt.Errorf("read parts from %s: %w", dir, err)
 	}

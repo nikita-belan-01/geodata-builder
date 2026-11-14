@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 )
@@ -74,11 +73,7 @@ func SplitIntoParts(domains []string, linesPerFile int) [][]string {
 	return parts
 }
 
-func SplitIntoFixedParts(domains []string, partCount, linesPerFile int) ([][]string, error) {
-	if partCount < 1 {
-		return nil, NewInvalidArgumentError("split domains", ErrInvalidPartCount)
-	}
-
+func SplitIntoRouterParts(domains []string, linesPerFile int) ([][]string, error) {
 	if linesPerFile < 1 {
 		return nil, NewInvalidArgumentError("split domains", ErrInvalidLinesPerFile)
 	}
@@ -87,21 +82,7 @@ func SplitIntoFixedParts(domains []string, partCount, linesPerFile int) ([][]str
 		return nil, NewInvalidArgumentError("split domains", ErrEmptyDomainList)
 	}
 
-	if capacity := partCount * linesPerFile; len(domains) > capacity {
-		needed := (len(domains) + linesPerFile - 1) / linesPerFile
-
-		return nil, NewAppError(KindTooLarge, fmt.Sprintf(
-			"domain count is now %d: %d parts are needed, but only %d are configured. "+
-				"Increase --parts: missing groups and routes will be created automatically",
-			len(domains), needed, partCount), ErrTooManyDomains)
-	}
-
-	chunks := SplitIntoParts(domains, linesPerFile)
-	for len(chunks) < partCount {
-		chunks = append(chunks, nil)
-	}
-
-	return chunks, nil
+	return SplitIntoParts(domains, linesPerFile), nil
 }
 
 func CountDomains(chunks [][]string) (total, nonEmpty int) {

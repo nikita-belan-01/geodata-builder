@@ -1,4 +1,3 @@
-// Package dns resolves domains to IPv4 addresses for the AmneziaVPN export.
 package dns
 
 import (

@@ -9,6 +9,7 @@ const DefaultPath = ".env"
 
 type Config struct {
 	Logger Logger
+	Router Router
 	Lists  Lists
 }
 
@@ -34,6 +35,11 @@ func New(confPath string) (*Config, error) {
 		return nil, fmt.Errorf("init logger config: %w", err)
 	}
 
+	router, err := newRouter()
+	if err != nil {
+		return nil, fmt.Errorf("init router config: %w", err)
+	}
+
 	lists, err := newLists()
 	if err != nil {
 		return nil, fmt.Errorf("init lists config: %w", err)
@@ -41,6 +47,7 @@ func New(confPath string) (*Config, error) {
 
 	return &Config{
 		Logger: loggerConfig,
+		Router: router,
 		Lists:  lists,
 	}, nil
 }

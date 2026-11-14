@@ -16,7 +16,7 @@ type partFile struct {
 	path  string
 }
 
-func (r *ListFilesRepository) ReadParts(dir string, partCount, linesPerFile int) ([][]string, error) {
+func (r *ListFilesRepository) ReadParts(dir string, linesPerFile int) ([][]string, error) {
 	matches, err := filepath.Glob(filepath.Join(dir, "part_*.txt"))
 	if err != nil {
 		return nil, fmt.Errorf("list part files: %w", err)
@@ -41,13 +41,7 @@ func (r *ListFilesRepository) ReadParts(dir string, partCount, linesPerFile int)
 			fmt.Sprintf("no part_N.txt files found in %s", dir), domain.ErrEmptyDomainList)
 	}
 
-	if len(found) > partCount {
-		return nil, domain.NewInvalidArgumentError(
-			fmt.Sprintf("found %d parts in %s, but %d are configured", len(found), dir, partCount),
-			domain.ErrTooManyDomains)
-	}
-
-	chunks := make([][]string, 0, partCount)
+	chunks := make([][]string, 0, len(found))
 	seen := map[string]bool{}
 
 	for i, item := range found {
@@ -74,10 +68,6 @@ func (r *ListFilesRepository) ReadParts(dir string, partCount, linesPerFile int)
 		}
 
 		chunks = append(chunks, domains)
-	}
-
-	for len(chunks) < partCount {
-		chunks = append(chunks, nil)
 	}
 
 	r.log.Debug("parts loaded", "dir", dir, "parts", len(found))

@@ -12,7 +12,7 @@ type SourceRepository interface {
 }
 
 type StorageRepository interface {
-	ReadParts(dir string, partCount, linesPerFile int) ([][]string, error)
+	ReadParts(dir string, linesPerFile int) ([][]string, error)
 	WriteParts(dir string, chunks [][]string) error
 }
 

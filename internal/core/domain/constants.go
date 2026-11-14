@@ -1,10 +1,6 @@
 package domain
 
-const (
-	DefaultLinesPerFile = 300
-
-	DefaultPartCount = 6
-)
+const DefaultLinesPerFile = 300
 
 var ExcludeAttrsOptimized = map[string]bool{
 	"@ads":       true,

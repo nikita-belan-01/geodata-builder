@@ -2,6 +2,7 @@ package fs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +23,7 @@ func (r *ListFilesRepository) WriteParts(dir string, chunks [][]string) error {
 		target := filepath.Join(dir, fmt.Sprintf("part_%d.txt", i+1))
 		active[target] = true
 
-		if err := writeFileAtomically(dir, target, []byte(strings.Join(domains, "\n"))); err != nil {
+		if err := r.writeFileAtomically(dir, target, []byte(strings.Join(domains, "\n"))); err != nil {
 			return err
 		}
 	}
@@ -53,10 +54,10 @@ func (r *ListFilesRepository) WriteFile(path string, data []byte) error {
 		return fmt.Errorf("create dir %s: %w", dir, err)
 	}
 
-	return writeFileAtomically(dir, path, data)
+	return r.writeFileAtomically(dir, path, data)
 }
 
-func writeFileAtomically(dir, target string, data []byte) error {
+func (r *ListFilesRepository) writeFileAtomically(dir, target string, data []byte) error {
 	tmp, err := os.CreateTemp(dir, "."+filepath.Base(target)+".*")
 	if err != nil {
 		return fmt.Errorf("create temp file: %w", err)
@@ -65,23 +66,35 @@ func writeFileAtomically(dir, target string, data []byte) error {
 	tmpPath := tmp.Name()
 
 	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		os.Remove(tmpPath)
+		r.closeOnFailure(tmp, tmpPath)
+		r.removeLeftover(tmpPath)
 
 		return fmt.Errorf("write temp file: %w", err)
 	}
 
 	if err := tmp.Close(); err != nil {
-		os.Remove(tmpPath)
+		r.removeLeftover(tmpPath)
 
 		return fmt.Errorf("close temp file: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, target); err != nil {
-		os.Remove(tmpPath)
+		r.removeLeftover(tmpPath)
 
 		return fmt.Errorf("replace %s: %w", target, err)
 	}
 
 	return nil
+}
+
+func (r *ListFilesRepository) removeLeftover(path string) {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		r.log.Warn("remove leftover file", "path", path, "error", err.Error())
+	}
+}
+
+func (r *ListFilesRepository) closeOnFailure(c io.Closer, path string) {
+	if err := c.Close(); err != nil {
+		r.log.Debug("close after failure", "path", path, "error", err.Error())
+	}
 }
