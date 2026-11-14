@@ -1,7 +1,3 @@
-// Package logger builds the application logger on top of log/slog.
-//
-// Records go to stderr so that the tool's own output on stdout stays clean and
-// pipeable, and additionally to a file when a log directory is configured.
 package logger
 
 import (
@@ -63,9 +59,11 @@ func ParseLevel(logLevel string) (slog.Level, error) {
 }
 
 func ValidateLogLevel(logLevel string) error {
-	_, err := ParseLevel(logLevel)
+	if _, err := ParseLevel(logLevel); err != nil {
+		return err
+	}
 
-	return err
+	return nil
 }
 
 func ValidateLogFormat(logFormat string) error {

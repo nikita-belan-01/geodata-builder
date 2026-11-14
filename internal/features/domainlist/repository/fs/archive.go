@@ -17,9 +17,12 @@ func (r *ListFilesRepository) Archive(sourceDir, zipPath string) error {
 	if err != nil {
 		return fmt.Errorf("create archive: %w", err)
 	}
-	defer out.Close()
-
 	writer := zip.NewWriter(out)
+
+	discard := func() {
+		r.closeOnFailure(out, zipPath)
+		r.removeLeftover(zipPath)
+	}
 
 	if err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -35,15 +38,24 @@ func (r *ListFilesRepository) Archive(sourceDir, zipPath string) error {
 			return err
 		}
 
-		return addFileToZip(writer, path, relative)
+		return r.addFileToZip(writer, path, relative)
 	}); err != nil {
-		writer.Close()
+		r.closeOnFailure(writer, zipPath)
+		discard()
 
 		return fmt.Errorf("pack %s: %w", sourceDir, err)
 	}
 
 	if err := writer.Close(); err != nil {
-		return fmt.Errorf("close archive: %w", err)
+		discard()
+
+		return fmt.Errorf("finalize archive: %w", err)
+	}
+
+	if err := out.Close(); err != nil {
+		r.removeLeftover(zipPath)
+
+		return fmt.Errorf("close archive file: %w", err)
 	}
 
 	r.log.Info("archive ready", "path", zipPath)
@@ -51,12 +63,16 @@ func (r *ListFilesRepository) Archive(sourceDir, zipPath string) error {
 	return nil
 }
 
-func addFileToZip(writer *zip.Writer, path, name string) error {
+func (r *ListFilesRepository) addFileToZip(writer *zip.Writer, path, name string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			r.log.Debug("close source file", "path", path, "error", err.Error())
+		}
+	}()
 
 	entry, err := writer.Create(name)
 	if err != nil {
@@ -67,5 +83,5 @@ func addFileToZip(writer *zip.Writer, path, name string) error {
 		return err
 	}
 
-	return err
+	return nil
 }

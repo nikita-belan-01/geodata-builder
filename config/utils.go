@@ -2,8 +2,11 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 var (
@@ -11,6 +14,7 @@ var (
 	ErrInvalidDuration = errors.New("invalid duration")
 	ErrInvalidSize     = errors.New("invalid size")
 	ErrEmptyValue      = errors.New("value must not be empty")
+	ErrInvalidURL      = errors.New("must be an absolute http(s) URL")
 )
 
 func loadEnv(path string) error {
@@ -50,9 +54,42 @@ func loadEnv(path string) error {
 	return nil
 }
 
+func validatePort(port int) error {
+	if port < 1 || port > 65535 {
+		return ErrInvalidPort
+	}
+
+	return nil
+}
+
+func validateDuration(duration time.Duration) error {
+	if duration <= 0 {
+		return ErrInvalidDuration
+	}
+
+	return nil
+}
+
 func validateSize[T int | int64](size T) error {
 	if size <= 0 {
 		return ErrInvalidSize
+	}
+
+	return nil
+}
+
+func validateHTTPURL(raw string) error {
+	parsed, err := url.Parse(raw)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return fmt.Errorf("%w: %q", ErrInvalidURL, raw)
+	}
+
+	return nil
+}
+
+func validateNotEmpty(value string) error {
+	if strings.TrimSpace(value) == "" {
+		return ErrEmptyValue
 	}
 
 	return nil

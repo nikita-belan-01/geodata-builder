@@ -1,1 +1,6 @@
 .env
+*.log
+/bin/
+/netcraze_output/
+netcraze_output.zip
+/logs/

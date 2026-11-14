@@ -29,7 +29,7 @@ func (r *DomainListRepository) downloadDataDir(ctx context.Context, workDir stri
 
 	r.log.Debug("extracting archive", "path", archivePath)
 
-	if err := extractZip(archivePath, workDir); err != nil {
+	if err := r.extractZip(archivePath, workDir); err != nil {
 		return "", fmt.Errorf("extract archive: %w", err)
 	}
 
@@ -47,7 +47,7 @@ func (r *DomainListRepository) downloadDataDir(ctx context.Context, workDir stri
 }
 
 func (r *DomainListRepository) download(ctx context.Context, url, destination string) error {
-	httpErr := downloadWithHTTP(ctx, url, destination)
+	httpErr := r.downloadWithHTTP(ctx, url, destination)
 	if httpErr == nil {
 		return nil
 	}
@@ -68,7 +68,7 @@ func (r *DomainListRepository) download(ctx context.Context, url, destination st
 	return nil
 }
 
-func downloadWithHTTP(ctx context.Context, url, destination string) error {
+func (r *DomainListRepository) downloadWithHTTP(ctx context.Context, url, destination string) (err error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
@@ -78,7 +78,11 @@ func downloadWithHTTP(ctx context.Context, url, destination string) error {
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			r.log.Debug("close response body", "url", url, "error", err.Error())
+		}
+	}()
 
 	if response.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response status: %s", response.Status)
@@ -88,19 +92,29 @@ func downloadWithHTTP(ctx context.Context, url, destination string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() {
+		if closeErr := out.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close %s: %w", destination, closeErr)
+		}
+	}()
 
-	_, err = io.Copy(out, response.Body)
+	if _, err = io.Copy(out, response.Body); err != nil {
+		return err
+	}
 
-	return err
+	return nil
 }
 
-func extractZip(archivePath, destDir string) error {
+func (r *DomainListRepository) extractZip(archivePath, destDir string) error {
 	reader, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return err
 	}
-	defer reader.Close()
+	defer func() {
+		if err := reader.Close(); err != nil {
+			r.log.Debug("close zip archive", "path", archivePath, "error", err.Error())
+		}
+	}()
 
 	destDir, err = filepath.Abs(destDir)
 	if err != nil {
@@ -125,7 +139,7 @@ func extractZip(archivePath, destDir string) error {
 			return err
 		}
 
-		if err := extractZipFile(file, targetPath); err != nil {
+		if err := r.extractZipFile(file, targetPath); err != nil {
 			return err
 		}
 	}
@@ -142,22 +156,30 @@ func safeJoin(destDir, name string) (string, error) {
 	return target, nil
 }
 
-func extractZipFile(file *zip.File, targetPath string) error {
+func (r *DomainListRepository) extractZipFile(file *zip.File, targetPath string) (err error) {
 	rc, err := file.Open()
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
+	defer func() {
+		if err := rc.Close(); err != nil {
+			r.log.Debug("close zip entry", "name", file.Name, "error", err.Error())
+		}
+	}()
 
 	out, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer func() {
+		if closeErr := out.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("close %s: %w", targetPath, closeErr)
+		}
+	}()
 
 	if _, err = io.Copy(out, rc); err != nil {
 		return err
 	}
 
-	return err
+	return nil
 }

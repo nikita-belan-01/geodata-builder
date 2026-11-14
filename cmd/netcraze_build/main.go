@@ -72,7 +72,7 @@ func run() error {
 
 	appLogger.Debug("initializing features", "feature", "domainlist")
 
-	source := domainlist_v2fly.NewDomainListRepository(appLogger)
+	source := domainlist_v2fly.NewDomainListRepository(conf.Lists.SourceURL, appLogger)
 	storage := domainlist_fs.NewListFilesRepository(appLogger)
 	domainLists := domainlist_service.NewDomainListService(source, storage, appLogger)
 
